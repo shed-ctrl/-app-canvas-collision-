@@ -14,13 +14,12 @@ class Circle {
         this.posX = x;
         this.posY = y;
         this.radius = radius;
-        this.originalColor = color; // Guardamos el color original
+        this.originalColor = color;
         this.color = color;
         this.text = text;
         this.speed = speed;
-        this.dx = (Math.random() < 0.5 ? -1 : 1) * this.speed; // Dirección aleatoria en X
-        this.dy = (Math.random() < 0.5 ? -1 : 1) * this.speed; // Dirección aleatoria en Y
-        this.isFlashing = false; // Para controlar el "flash" de color
+        this.dx = (Math.random() < 0.5 ? -1 : 1) * this.speed;
+        this.dy = -Math.abs(this.speed); // Siempre hacia arriba inicialmente
     }
 
     draw(context) {
@@ -47,13 +46,8 @@ class Circle {
 
         // Actualizar la posición Y
         this.posY += this.dy;
-        if (this.posY + this.radius > window_height || this.posY - this.radius < 0) {
+        if (this.posY - this.radius < 0) { // Rebotar si llegan al borde superior
             this.dy = -this.dy;
-        }
-
-        // Cambiar color de vuelta al original si no está flasheando
-        if (!this.isFlashing) {
-            this.color = this.originalColor;
         }
     }
 
@@ -65,29 +59,27 @@ class Circle {
         return distance < this.radius + otherCircle.radius;
     }
 
-    changeColorOnCollision() {
-        this.isFlashing = true; // Activar el estado de flash
-        this.color = "#0000FF"; // Azul si hay colisión
-        setTimeout(() => {
-            this.isFlashing = false; // Desactivar el estado de flash
-        }, 100); // Duración del flash
+    changeColorOnCollision(isColliding) {
+        this.color = isColliding ? "#0000FF" : this.originalColor; // Azul si hay colisión, original si no
     }
 
-    reverseDirection() {
-        this.dx = -this.dx;
-        this.dy = -this.dy;
+    isClicked(mouseX, mouseY) {
+        const distX = mouseX - this.posX;
+        const distY = mouseY - this.posY;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+        return distance < this.radius; // Verifica si el clic está dentro del círculo
     }
 }
 
-// Crear un array para almacenar N círculos
+// Crear un array para almacenar los círculos
 let circles = [];
 
-// Función para generar círculos aleatorios
+// Función para generar círculos aleatorios desde el borde inferior
 function generateCircles(n) {
     for (let i = 0; i < n; i++) {
         let radius = Math.random() * 30 + 20; // Radio entre 20 y 50
         let x = Math.random() * (window_width - radius * 2) + radius;
-        let y = Math.random() * (window_height - radius * 2) + radius;
+        let y = window_height - radius; // Justo antes del margen inferior
         let color = `#${Math.floor(Math.random() * 16777215).toString(16)}`; // Color aleatorio
         let speed = Math.random() * 4 + 1; // Velocidad entre 1 y 5
         let text = `C${i + 1}`; // Etiqueta del círculo
@@ -99,19 +91,30 @@ function generateCircles(n) {
 function detectCollisions() {
     for (let i = 0; i < circles.length; i++) {
         let circleA = circles[i];
+        let isColliding = false;
 
         for (let j = i + 1; j < circles.length; j++) {
             let circleB = circles[j];
 
             if (circleA.detectCollision(circleB)) {
-                circleA.reverseDirection(); // Revertir dirección A
-                circleB.reverseDirection(); // Revertir dirección B
-                circleA.changeColorOnCollision(); // Cambiar color A
-                circleB.changeColorOnCollision(); // Cambiar color B
+                isColliding = true;
+                circleB.changeColorOnCollision(true);
+            } else {
+                circleB.changeColorOnCollision(false);
             }
         }
+
+        circleA.changeColorOnCollision(isColliding);
     }
 }
+
+// Eliminar un círculo si se hace clic en él
+canvas.addEventListener("click", function (event) {
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+
+    circles = circles.filter(circle => !circle.isClicked(mouseX, mouseY)); // Eliminar círculo clickeado
+});
 
 // Función para animar los círculos
 function animate() {
